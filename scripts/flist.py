@@ -4,9 +4,8 @@ import numpy as np
 from glob import glob
 from tqdm import tqdm
 
-data_type: str = 'mask'  # image
-
 mode: str = 'val'
+data_type: str = 'mask'  # image
 output: str = '../datasets/'
 
 images = []

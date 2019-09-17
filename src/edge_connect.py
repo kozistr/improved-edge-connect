@@ -10,7 +10,7 @@ from .models import EdgeModel, InpaintingModel
 from .utils import Progbar, create_dir, stitch_images, imsave
 
 
-class EdgeConnect():
+class EdgeConnect:
     def __init__(self, config):
         self.config = config
 
@@ -22,9 +22,11 @@ class EdgeConnect():
             model_name = 'edge_inpaint'
         elif config.MODEL == 4:
             model_name = 'joint'
+        else:
+            raise NotImplementedError
 
-        self.debug = False
-        self.model_name = model_name
+        self.debug: bool = False
+        self.model_name: str = model_name
         self.edge_model = EdgeModel(config).to(config.DEVICE)
         self.inpaint_model = InpaintingModel(config).to(config.DEVICE)
 
@@ -79,7 +81,7 @@ class EdgeConnect():
         train_loader = DataLoader(
             dataset=self.train_dataset,
             batch_size=self.config.BATCH_SIZE,
-            num_workers=12,
+            num_workers=8,
             drop_last=True,
             shuffle=True
         )

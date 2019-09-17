@@ -9,7 +9,7 @@ from .networks import InpaintGenerator, EdgeGenerator, Discriminator
 
 
 class BaseModel(nn.Module):
-    def __init__(self, name, config):
+    def __init__(self, name: str, config):
         super(BaseModel, self).__init__()
 
         self.name = name
@@ -66,7 +66,7 @@ class EdgeModel(BaseModel):
             generator = nn.DataParallel(generator, config.GPU)
             discriminator = nn.DataParallel(discriminator, config.GPU)
         l1_loss = nn.L1Loss()
-        adversarial_loss = AdversarialLoss(type=config.GAN_LOSS)
+        adversarial_loss = AdversarialLoss(loss_type=config.GAN_LOSS)
 
         self.add_module('generator', generator)
         self.add_module('discriminator', discriminator)
@@ -163,7 +163,7 @@ class InpaintingModel(BaseModel):
         l1_loss = nn.L1Loss()
         perceptual_loss = PerceptualLoss()
         style_loss = StyleLoss()
-        adversarial_loss = AdversarialLoss(type=config.GAN_LOSS)
+        adversarial_loss = AdversarialLoss(loss_type=config.GAN_LOSS)
 
         self.add_module('generator', generator)
         self.add_module('discriminator', discriminator)

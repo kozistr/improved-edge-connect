@@ -8,12 +8,12 @@ import numpy as np
 from PIL import Image
 
 
-def create_dir(dir):
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+def create_dir(directory: str):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 
-def create_mask(width, height, mask_width, mask_height, x=None, y=None):
+def create_mask(width: int, height: int, mask_width: int, mask_height: int, x=None, y=None):
     mask = np.zeros((height, width))
     mask_x = x if x is not None else random.randint(0, width - mask_width)
     mask_y = y if y is not None else random.randint(0, height - mask_height)
@@ -21,9 +21,9 @@ def create_mask(width, height, mask_width, mask_height, x=None, y=None):
     return mask
 
 
-def stitch_images(inputs, *outputs, img_per_row=2):
-    gap = 5
-    columns = len(outputs) + 1
+def stitch_images(inputs, *outputs, img_per_row: int = 2):
+    gap: int = 5
+    columns: int = len(outputs) + 1
 
     width, height = inputs[0][:, :, 0].shape
     img = Image.new('RGB',
@@ -31,14 +31,13 @@ def stitch_images(inputs, *outputs, img_per_row=2):
     images = [inputs, *outputs]
 
     for ix in range(len(inputs)):
-        xoffset = int(ix % img_per_row) * width * columns + int(ix % img_per_row) * gap
-        yoffset = int(ix / img_per_row) * height
+        x_offset = int(ix % img_per_row) * width * columns + int(ix % img_per_row) * gap
+        y_offset = int(ix / img_per_row) * height
 
         for cat in range(len(images)):
             im = np.array((images[cat][ix]).cpu()).astype(np.uint8).squeeze()
             im = Image.fromarray(im)
-            img.paste(im, (xoffset + cat * width, yoffset))
-
+            img.paste(im, (x_offset + cat * width, y_offset))
     return img
 
 

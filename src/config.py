@@ -4,6 +4,7 @@ import yaml
 
 class Config(dict):
     def __init__(self, config_path):
+        super().__init__()
         with open(config_path, 'r') as f:
             self._yaml = f.read()
             self._dict = yaml.load(self._yaml)
@@ -30,13 +31,13 @@ class Config(dict):
 DEFAULT_CONFIG = {
     'MODE': 1,  # 1: train, 2: test, 3: eval
     'MODEL': 1,  # 1: edge model, 2: inpaint model, 3: edge-inpaint model, 4: joint model
-    'MASK': 4,  # 1: random block, 2: half, 3: external, 4: (external, random block), 5: (external, random block, half)
+    'MASK': 3,  # 1: random block, 2: half, 3: external, 4: (external, random block), 5: (external, random block, half)
     'EDGE': 1,  # 1: canny, 2: external
     'NMS': 1,  # 0: no non-max-suppression, 1: applies non-max-suppression on the external edges by multiplying by Canny
     'SEED': 1337,  # random seed
     'GPU': [0],  # list of gpu ids
     'DEBUG': 0,  # turns on debugging mode
-    'VERBOSE': 0,  # turns on verbose mode in the output console
+    'VERBOSE': 1,  # turns on verbose mode in the output console
 
     'LR': 0.0001,  # learning rate
     'D2G_LR': 0.1,  # discriminator/generator learning rate ratio

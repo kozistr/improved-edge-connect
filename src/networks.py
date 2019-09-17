@@ -6,13 +6,12 @@ class BaseNetwork(nn.Module):
     def __init__(self):
         super(BaseNetwork, self).__init__()
 
-    def init_weights(self, init_type='normal', gain=0.02):
-        '''
+    def init_weights(self, init_type: str = 'normal', gain: float = 0.02):
+        """
         initialize network's weights
         init_type: normal | xavier | kaiming | orthogonal
         https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/9451e70673400885567d08a9e97ade2524c700d0/models/networks.py#L39
-        '''
-
+        """
         def init_func(m):
             classname = m.__class__.__name__
             if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
@@ -36,7 +35,7 @@ class BaseNetwork(nn.Module):
 
 
 class InpaintGenerator(BaseNetwork):
-    def __init__(self, residual_blocks=8, init_weights=True):
+    def __init__(self, residual_blocks: int = 8, init_weights: bool = True):
         super(InpaintGenerator, self).__init__()
 
         self.encoder = nn.Sequential(
@@ -54,10 +53,7 @@ class InpaintGenerator(BaseNetwork):
             nn.ReLU(True)
         )
 
-        blocks = []
-        for _ in range(residual_blocks):
-            block = ResnetBlock(256, 2)
-            blocks.append(block)
+        blocks = [ResBlock(256, 2) for _ in range(residual_blocks)]
 
         self.middle = nn.Sequential(*blocks)
 
@@ -82,7 +78,6 @@ class InpaintGenerator(BaseNetwork):
         x = self.middle(x)
         x = self.decoder(x)
         x = (torch.tanh(x) + 1) / 2
-
         return x
 
 
@@ -109,7 +104,7 @@ class EdgeGenerator(BaseNetwork):
 
         blocks = []
         for _ in range(residual_blocks):
-            block = ResnetBlock(256, 2, use_spectral_norm=use_spectral_norm)
+            block = ResBlock(256, 2, use_spectral_norm=use_spectral_norm)
             blocks.append(block)
 
         self.middle = nn.Sequential(*blocks)
@@ -141,7 +136,8 @@ class EdgeGenerator(BaseNetwork):
 
 
 class Discriminator(BaseNetwork):
-    def __init__(self, in_channels, use_sigmoid=True, use_spectral_norm=True, init_weights=True):
+    def __init__(self, in_channels,
+                 use_sigmoid: bool = True, use_spectral_norm: bool = True, init_weights: bool = True):
         super(Discriminator, self).__init__()
         self.use_sigmoid = use_sigmoid
 
@@ -191,9 +187,9 @@ class Discriminator(BaseNetwork):
         return outputs, [conv1, conv2, conv3, conv4, conv5]
 
 
-class ResnetBlock(nn.Module):
-    def __init__(self, dim, dilation=1, use_spectral_norm=False):
-        super(ResnetBlock, self).__init__()
+class ResBlock(nn.Module):
+    def __init__(self, dim, dilation: int = 1, use_spectral_norm: bool = False):
+        super(ResBlock, self).__init__()
         self.conv_block = nn.Sequential(
             nn.ReflectionPad2d(dilation),
             spectral_norm(nn.Conv2d(in_channels=dim, out_channels=dim, kernel_size=3, padding=0, dilation=dilation,
@@ -208,16 +204,13 @@ class ResnetBlock(nn.Module):
         )
 
     def forward(self, x):
-        out = x + self.conv_block(x)
-
         # Remove ReLU at the end of the residual block
         # http://torch.ch/blog/2016/02/04/resnets.html
-
+        out = x + self.conv_block(x)
         return out
 
 
-def spectral_norm(module, mode=True):
+def spectral_norm(module, mode: bool = True):
     if mode:
         return nn.utils.spectral_norm(module)
-
     return module
