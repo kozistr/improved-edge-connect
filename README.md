@@ -6,6 +6,12 @@ It is based on [original repo](https://github.com/knazeri/edge-connect).
 **WIP**
 
 # Introduction
+We develop a new approach for image inpainting that does a better job of reproducing filled regions exhibiting fine details 
+inspired by our understanding of how artists work: lines first, color next. 
+We propose a two-stage adversarial model EdgeConnect that comprises of an edge generator followed by an image completion network. 
+The edge generator hallucinates edges of the missing region (both regular and irregular) of the image, 
+and the image completion network fills in the missing regions using hallucinated edges as a priority. 
+Detailed description of the system can be found in our [paper](https://arxiv.org/abs/1901.00212).
 
 # Requirements
 1) Python 3.x
