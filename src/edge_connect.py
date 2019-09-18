@@ -8,6 +8,7 @@ from .dataset import Dataset
 from .metrics import PSNR, EdgeAccuracy
 from .models import EdgeModel, InpaintingModel
 from .utils import Progbar, create_dir, stitch_images, imsave
+from .networks import RhoClipper
 
 
 class EdgeConnect:
@@ -92,6 +93,8 @@ class EdgeConnect:
         max_iteration: int = int(float(self.config.MAX_ITERS))
         total: int = len(self.train_dataset)
 
+        rho_clipper = RhoClipper(0., 1.)
+
         if total == 0:
             print('No training data was provided! Check \'TRAIN_FLIST\' value in the configuration file.')
             return
@@ -122,6 +125,9 @@ class EdgeConnect:
                     self.edge_model.backward(gen_loss, dis_loss)
                     iteration = self.edge_model.iteration
 
+                    # Rho clipper
+                    rho_clipper(self.edge_model)
+
                 # inpaint model
                 elif model == 2:
                     # train
@@ -137,6 +143,9 @@ class EdgeConnect:
                     # backward
                     self.inpaint_model.backward(gen_loss, dis_loss)
                     iteration = self.inpaint_model.iteration
+
+                    # Rho clipper
+                    rho_clipper(self.edge_model)
 
                 # inpaint with edge model
                 elif model == 3:
@@ -160,6 +169,9 @@ class EdgeConnect:
                     self.inpaint_model.backward(gen_loss, dis_loss)
                     iteration = self.inpaint_model.iteration
 
+                    # Rho clipper
+                    rho_clipper(self.edge_model)
+
                 # joint model
                 else:
                     # train
@@ -182,6 +194,9 @@ class EdgeConnect:
                     self.inpaint_model.backward(i_gen_loss, i_dis_loss)
                     self.edge_model.backward(e_gen_loss, e_dis_loss)
                     iteration = self.inpaint_model.iteration
+
+                    # Rho clipper
+                    rho_clipper(self.edge_model)
 
                 if iteration >= max_iteration:
                     keep_training = False
