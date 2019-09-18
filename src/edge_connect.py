@@ -170,7 +170,7 @@ class EdgeConnect:
                     iteration = self.inpaint_model.iteration
 
                     # Rho clipper
-                    rho_clipper(self.edge_model)
+                    rho_clipper(self.inpaint_model)
 
                 # joint model
                 else:
@@ -197,6 +197,7 @@ class EdgeConnect:
 
                     # Rho clipper
                     rho_clipper(self.edge_model)
+                    rho_clipper(self.inpaint_model)
 
                 if iteration >= max_iteration:
                     keep_training = False
