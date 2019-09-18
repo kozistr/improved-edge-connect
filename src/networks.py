@@ -2,11 +2,35 @@ import torch
 import torch.nn as nn
 
 
+class ILN(nn.Module):
+    def __init__(self, num_features: int, eps: float = 1.1e-5):
+        super(ILN, self).__init__()
+        self.eps = eps
+        self.rho = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.gamma = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.beta = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.rho.data.fill_(0.0)
+        self.gamma.data.fill_(1.0)
+        self.beta.data.fill_(0.0)
+
+    def forward(self, x):
+        in_mean, in_var = \
+            torch.mean(x, dim=[2, 3], keepdim=True), torch.var(x, dim=[2, 3], keepdim=True)
+        out_in = (x - in_mean) / torch.sqrt(in_var + self.eps)
+        ln_mean, ln_var = \
+            torch.mean(x, dim=[1, 2, 3], keepdim=True), torch.var(x, dim=[1, 2, 3], keepdim=True)
+        out_ln = (x - ln_mean) / torch.sqrt(ln_var + self.eps)
+        out = self.rho.expand(x.shape[0], -1, -1, -1) * out_in + (
+                    1 - self.rho.expand(x.shape[0], -1, -1, -1)) * out_ln
+        out = out * self.gamma.expand(x.shape[0], -1, -1, -1) + self.beta.expand(x.shape[0], -1, -1, -1)
+        return out
+
+
 class BaseNetwork(nn.Module):
     def __init__(self):
         super(BaseNetwork, self).__init__()
 
-    def init_weights(self, init_type: str = 'normal', gain: float = 0.02):
+    def init_weights(self, init_type: str = 'normal', gain: float = 2e-2):
         """
         initialize network's weights
         init_type: normal | xavier | kaiming | orthogonal
@@ -111,14 +135,16 @@ class EdgeGenerator(BaseNetwork):
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=0),
                           use_spectral_norm),
-            nn.InstanceNorm2d(128, track_running_stats=False),
+            # nn.InstanceNorm2d(128, track_running_stats=False),
+            ILN(128),
             nn.LeakyReLU(.2, True),
 
             nn.Upsample(scale_factor=2),
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=0),
                           use_spectral_norm),
-            nn.InstanceNorm2d(64, track_running_stats=False),
+            # nn.InstanceNorm2d(64, track_running_stats=False),
+            ILN(64),
             nn.LeakyReLU(.2, True),
 
             nn.ReflectionPad2d(3),
@@ -161,28 +187,28 @@ class Discriminator(BaseNetwork):
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.LeakyReLU(.2, inplace=True),
         )
 
         self.conv2 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.LeakyReLU(.2, inplace=True),
         )
 
         self.conv3 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.LeakyReLU(.2, inplace=True),
         )
 
         self.conv4 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=1, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.LeakyReLU(.2, inplace=True),
         )
 
         self.conv5 = nn.Sequential(
@@ -235,3 +261,16 @@ def spectral_norm(module, mode: bool = True):
     if mode:
         return nn.utils.spectral_norm(module)
     return module
+
+
+class RhoClipper:
+    def __init__(self, clip_min: float, clip_max: float):
+        self.clip_min = clip_min
+        self.clip_max = clip_max
+        assert clip_min < clip_max
+
+    def __call__(self, module):
+        if hasattr(module, 'rho'):
+            w = module.rho.data
+            w = w.clamp(self.clip_min, self.clip_max)
+            module.rho.data = w
