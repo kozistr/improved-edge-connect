@@ -82,7 +82,7 @@ class InpaintGenerator(BaseNetwork):
 
 
 class EdgeGenerator(BaseNetwork):
-    def __init__(self, residual_blocks=8, use_spectral_norm=True, init_weights=True):
+    def __init__(self, residual_blocks: int = 8, use_spectral_norm: bool = True, init_weights: bool = True):
         super(EdgeGenerator, self).__init__()
 
         self.encoder = nn.Sequential(
@@ -102,12 +102,28 @@ class EdgeGenerator(BaseNetwork):
             nn.ReLU(True)
         )
 
-        blocks = []
-        for _ in range(residual_blocks):
-            block = ResBlock(256, 2, use_spectral_norm=use_spectral_norm)
-            blocks.append(block)
+        blocks = [ResBlock(256, 2, use_spectral_norm=use_spectral_norm) for _ in range(residual_blocks)]
 
         self.middle = nn.Sequential(*blocks)
+
+        self.alter_decoder = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=0),
+                          use_spectral_norm),
+            nn.InstanceNorm2d(128, track_running_stats=False),
+            nn.LeakyReLU(.2, True),
+
+            nn.Upsample(scale_factor=2),
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=0),
+                          use_spectral_norm),
+            nn.InstanceNorm2d(64, track_running_stats=False),
+            nn.LeakyReLU(.2, True),
+
+            nn.ReflectionPad2d(3),
+            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=7, padding=0),
+        )
 
         self.decoder = nn.Sequential(
             spectral_norm(nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1),
@@ -127,10 +143,10 @@ class EdgeGenerator(BaseNetwork):
         if init_weights:
             self.init_weights()
 
-    def forward(self, x):
+    def forward(self, x, use_alter_decoder: bool = True):
         x = self.encoder(x)
         x = self.middle(x)
-        x = self.decoder(x)
+        x = self.alter_decoder(x) if use_alter_decoder else self.decoder(x)
         x = torch.sigmoid(x)
         return x
 
@@ -142,31 +158,36 @@ class Discriminator(BaseNetwork):
         self.use_sigmoid = use_sigmoid
 
         self.conv1 = self.features = nn.Sequential(
-            spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, padding=1,
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         self.conv2 = nn.Sequential(
-            spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1,
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         self.conv3 = nn.Sequential(
-            spectral_norm(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1,
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         self.conv4 = nn.Sequential(
-            spectral_norm(nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=1, padding=1,
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=1, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         self.conv5 = nn.Sequential(
-            spectral_norm(nn.Conv2d(in_channels=512, out_channels=1, kernel_size=4, stride=1, padding=1,
+            nn.ReflectionPad2d(1),
+            spectral_norm(nn.Conv2d(in_channels=512, out_channels=1, kernel_size=4, stride=1, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
         )
 
