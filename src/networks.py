@@ -166,11 +166,12 @@ class EdgeGenerator(BaseNetwork):
             self.init_weights()
 
     def forward(self, x, use_alter_decoder: bool = True):
+        x_init = x
         x = self.encoder(x)
         x = self.middle(x)
         x = self.alter_decoder(x) if use_alter_decoder else self.decoder(x)
         x = torch.sigmoid(x)
-        masked_edge = torch.split(x, 3, dim=1)[1]
+        masked_edge = torch.split(x_init, 3, dim=1)[1]
         return x + masked_edge
 
 
