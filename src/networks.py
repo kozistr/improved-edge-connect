@@ -6,9 +6,9 @@ class ILN(nn.Module):
     def __init__(self, num_features: int, eps: float = 1.1e-5):
         super(ILN, self).__init__()
         self.eps = eps
-        self.rho = Parameter(torch.Tensor(1, num_features, 1, 1))
-        self.gamma = Parameter(torch.Tensor(1, num_features, 1, 1))
-        self.beta = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.rho = nn.Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.gamma = nn.Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.beta = nn.Parameter(torch.Tensor(1, num_features, 1, 1))
         self.rho.data.fill_(0.0)
         self.gamma.data.fill_(1.0)
         self.beta.data.fill_(0.0)
@@ -20,8 +20,9 @@ class ILN(nn.Module):
         ln_mean, ln_var = \
             torch.mean(x, dim=[1, 2, 3], keepdim=True), torch.var(x, dim=[1, 2, 3], keepdim=True)
         out_ln = (x - ln_mean) / torch.sqrt(ln_var + self.eps)
-        out = self.rho.expand(x.shape[0], -1, -1, -1) * out_in + (
-                    1 - self.rho.expand(x.shape[0], -1, -1, -1)) * out_ln
+        out = \
+            self.rho.expand(x.shape[0], -1, -1, -1) * out_in + \
+            (1 - self.rho.expand(x.shape[0], -1, -1, -1)) * out_ln
         out = out * self.gamma.expand(x.shape[0], -1, -1, -1) + self.beta.expand(x.shape[0], -1, -1, -1)
         return out
 
@@ -36,6 +37,7 @@ class BaseNetwork(nn.Module):
         init_type: normal | xavier | kaiming | orthogonal
         https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/9451e70673400885567d08a9e97ade2524c700d0/models/networks.py#L39
         """
+
         def init_func(m):
             classname = m.__class__.__name__
             if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
@@ -109,20 +111,21 @@ class EdgeGenerator(BaseNetwork):
     def __init__(self, residual_blocks: int = 8, use_spectral_norm: bool = True, init_weights: bool = True):
         super(EdgeGenerator, self).__init__()
 
-        self.encoder = nn.Sequential(
+        self.init_conv = nn.Sequential(
             nn.ReflectionPad2d(3),
             spectral_norm(nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, padding=0), use_spectral_norm),
-            nn.InstanceNorm2d(64, track_running_stats=False),
-            nn.ReLU(True),
+            nn.ReLU(True)
+        )
 
+        self.encoder = nn.Sequential(
             spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
                           use_spectral_norm),
-            nn.InstanceNorm2d(128, track_running_stats=False),
+            nn.InstanceNorm2d(128),
             nn.ReLU(True),
 
             spectral_norm(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
                           use_spectral_norm),
-            nn.InstanceNorm2d(256, track_running_stats=False),
+            nn.InstanceNorm2d(256),
             nn.ReLU(True)
         )
 
@@ -135,7 +138,6 @@ class EdgeGenerator(BaseNetwork):
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=0),
                           use_spectral_norm),
-            # nn.InstanceNorm2d(128, track_running_stats=False),
             ILN(128),
             nn.LeakyReLU(.2, True),
 
@@ -143,7 +145,6 @@ class EdgeGenerator(BaseNetwork):
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=0),
                           use_spectral_norm),
-            # nn.InstanceNorm2d(64, track_running_stats=False),
             ILN(64),
             nn.LeakyReLU(.2, True),
 
@@ -170,9 +171,11 @@ class EdgeGenerator(BaseNetwork):
             self.init_weights()
 
     def forward(self, x, use_alter_decoder: bool = True):
-        x = self.encoder(x)
+        x_init = self.init_conv(x)
+        x = self.encoder(x_init)
         x = self.middle(x)
         x = self.alter_decoder(x) if use_alter_decoder else self.decoder(x)
+        x = x + x_init
         x = torch.sigmoid(x)
         return x
 
@@ -187,28 +190,28 @@ class Discriminator(BaseNetwork):
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(.2, inplace=True),
+            nn.LeakyReLU(.2, True),
         )
 
         self.conv2 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(.2, inplace=True),
+            nn.LeakyReLU(.2, True),
         )
 
         self.conv3 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(.2, inplace=True),
+            nn.LeakyReLU(.2, True),
         )
 
         self.conv4 = nn.Sequential(
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=1, padding=0,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.LeakyReLU(.2, inplace=True),
+            nn.LeakyReLU(.2, True),
         )
 
         self.conv5 = nn.Sequential(
@@ -241,13 +244,13 @@ class ResBlock(nn.Module):
             nn.ReflectionPad2d(dilation),
             spectral_norm(nn.Conv2d(in_channels=dim, out_channels=dim, kernel_size=3, padding=0, dilation=dilation,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.InstanceNorm2d(dim, track_running_stats=False),
+            nn.InstanceNorm2d(dim),
             nn.ReLU(True),
 
             nn.ReflectionPad2d(1),
             spectral_norm(nn.Conv2d(in_channels=dim, out_channels=dim, kernel_size=3, padding=0, dilation=1,
                                     bias=not use_spectral_norm), use_spectral_norm),
-            nn.InstanceNorm2d(dim, track_running_stats=False),
+            nn.InstanceNorm2d(dim),
         )
 
     def forward(self, x):
