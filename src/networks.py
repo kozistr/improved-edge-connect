@@ -171,7 +171,7 @@ class EdgeGenerator(BaseNetwork):
         x = self.middle(x)
         x = self.alter_decoder(x) if use_alter_decoder else self.decoder(x)
         x = torch.sigmoid(x)
-        masked_edge = torch.split(x_init, 3, dim=1)[1]
+        masked_edge = torch.chunk(x_init, 3, dim=1)[1]
         return x + masked_edge
 
 
