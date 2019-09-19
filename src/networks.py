@@ -111,13 +111,10 @@ class EdgeGenerator(BaseNetwork):
     def __init__(self, residual_blocks: int = 8, use_spectral_norm: bool = True, init_weights: bool = True):
         super(EdgeGenerator, self).__init__()
 
-        self.init_conv = nn.Sequential(
+        self.encoder = nn.Sequential(
             nn.ReflectionPad2d(3),
             spectral_norm(nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, padding=0), use_spectral_norm),
-            nn.ReLU(True)
-        )
-
-        self.encoder = nn.Sequential(
+            nn.ReLU(True),
             spectral_norm(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
                           use_spectral_norm),
             nn.InstanceNorm2d(128),
@@ -136,48 +133,45 @@ class EdgeGenerator(BaseNetwork):
         self.alter_decoder = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.ReflectionPad2d(1),
-            spectral_norm(nn.Conv2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=0),
+            spectral_norm(nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=0),
                           use_spectral_norm),
             ILN(128),
-            nn.LeakyReLU(.2, True),
+            nn.ReLU(True),
 
             nn.Upsample(scale_factor=2),
             nn.ReflectionPad2d(1),
-            spectral_norm(nn.Conv2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=0),
+            spectral_norm(nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=0),
                           use_spectral_norm),
             ILN(64),
-            nn.LeakyReLU(.2, True),
-
+            nn.ReLU(True),
             nn.ReflectionPad2d(3),
-            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=7, padding=0),
+            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=7, padding=0)
         )
 
         self.decoder = nn.Sequential(
             spectral_norm(nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1),
                           use_spectral_norm),
-            nn.InstanceNorm2d(128, track_running_stats=False),
+            nn.InstanceNorm2d(128),
             nn.ReLU(True),
 
             spectral_norm(nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1),
                           use_spectral_norm),
-            nn.InstanceNorm2d(64, track_running_stats=False),
+            nn.InstanceNorm2d(64),
             nn.ReLU(True),
-
             nn.ReflectionPad2d(3),
-            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=7, padding=0),
+            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=7, padding=0)
         )
 
         if init_weights:
             self.init_weights()
 
     def forward(self, x, use_alter_decoder: bool = True):
-        x_init = self.init_conv(x)
-        x = self.encoder(x_init)
+        x = self.encoder(x)
         x = self.middle(x)
         x = self.alter_decoder(x) if use_alter_decoder else self.decoder(x)
-        x = x + x_init
         x = torch.sigmoid(x)
-        return x
+        masked_edge = torch.split(x, 3, dim=1)[1]
+        return x + masked_edge
 
 
 class Discriminator(BaseNetwork):
