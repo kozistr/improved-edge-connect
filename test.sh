@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 test.py --checkpoints "./checkpoints" --input "./examples/etc/images" --mask "./examples/etc/masks/" --output "./checkpoints/results"
+python3 test.py --model 3 --checkpoints "./checkpoints" --input "./examples/etc/images" --mask "./examples/etc/masks/" --output "./checkpoints/results"
