@@ -29,6 +29,10 @@ $ cd improved-edge-connect
 $ pip3 install -r requirements.txt
 ```
 
+# Result
+
+# Difference
+
 # License
 Licensed under a Creative Commons Attribution-NonCommercial 4.0 International.
 
