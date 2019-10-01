@@ -27,7 +27,7 @@ BETA2: 0.9                    # adam optimizer beta2
 BATCH_SIZE: 4                 # input batch size for training
 INPUT_SIZE: 256               # input image size for training 0 for original size
 SIGMA: 2                      # standard deviation of the Gaussian filter used in Canny edge detector (0: random, -1: no edge)
-MAX_ITERS: 5e5                # maximum number of iterations to train the model
+MAX_ITERS: 1e6                # maximum number of iterations to train the model
 
 EDGE_THRESHOLD: 0.5           # edge detection threshold
 L1_LOSS_WEIGHT: 1             # l1 loss weight
@@ -36,7 +36,7 @@ STYLE_LOSS_WEIGHT: 250        # style loss weight
 CONTENT_LOSS_WEIGHT: 0.1      # perceptual loss weight
 INPAINT_ADV_LOSS_WEIGHT: 0.1  # adversarial loss weight
 
-GAN_LOSS: nsgan               # nsgan | lsgan | hinge
+GAN_LOSS: hinge               # nsgan | lsgan | hinge
 GAN_POOL_SIZE: 0              # fake images pool size
 
 SAVE_INTERVAL: 500            # how many iterations to wait before saving model (0: never)
